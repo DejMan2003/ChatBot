@@ -1,8 +1,7 @@
-// app/api/chat/route.js
-import { NextResponse } from "next/server";
-import OpenAI from "openai";
+const { NextResponse } = require("next/server");
+const OpenAI = require("openai");
 
-const systemPrompt = `you are an AI-powered customer support assistant for Headstartal, a platform that provides AI-driven interviews for software
+const systemPrompt = `you are an AI-powered customer support assistant for HeadstartAI, a platform that provides AI-driven interviews for software
 
 1. HeadStartAI offers AI-powered interviews for software engineering positions.
 2. Our platform helps candidates practice and prepare for real job interviews.
@@ -14,39 +13,28 @@ const systemPrompt = `you are an AI-powered customer support assistant for Heads
 
 Your goal is to provide accurate information, assist with common inquiries, and ensure a positive experience for all HeadStartAI users.`;
 
-export async function POST(req) {
-  const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-
-  if (!apiKey) {
-    return new NextResponse('API key is missing', { status: 500 });
-  }
-
-  const openai = new OpenAI({ apiKey });
+async function POST(req) {
+  const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY });
   const data = await req.json();
-  console.log('Received data:', data);
-
-  // Validate the data structure
-  if (!Array.isArray(data.messages)) {
-    return new NextResponse('Invalid data format', { status: 400 });
-  }
 
   const completion = await openai.chat.completions.create({
     messages: [{
       role: "system",
       content: systemPrompt
-    }, ...data.messages],
-    model: 'gpt-4o-mini', // Ensure this is the correct model name
+    }],
+    ...data,
+    model: 'gpt-4o-mini',
     stream: true,
   });
 
   const stream = new ReadableStream({
     async start(controller) {
-      const encoder = new TextEncoder();
+      const encode = new TextEncoder();
       try {
         for await (const chunk of completion) {
-          const content = chunk.choices[0]?.delta?.content;
+          const content = chunk.choices[0].delta.content;
           if (content) {
-            const text = encoder.encode(content);
+            const text = encode.encode(content);
             controller.enqueue(text);
           }
         }
@@ -60,3 +48,5 @@ export async function POST(req) {
 
   return new NextResponse(stream);
 }
+
+module.exports = { POST };
